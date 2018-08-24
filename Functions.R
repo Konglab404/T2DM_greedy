@@ -34,27 +34,47 @@ Dis_Area<-function(u1,sig1,u2,sig2){
 ##Greedy Strategy###
 #need to complete
 ###################
+
 #Function Module_Add
 #module is a vector contains the genes have been in module
 #PPI is a 2-column dataframe/matrix denotes the interactions
 #case_Data & contorl_Data have the same structure as Funtion act_vec's input Dataset 
+#return a New module which have a smallest Dis_Area
 Module_Add<-function(module,PPI,case_Data,control_Data){
-  node_candi<-setdiff(PPI_test[PPI_test$Node1 %in% module,]$Node2,module) #list all the neighbor of module
-  nowScore<-Dis_Area(act_vec(Case,module)%>% mean,act_vec(Case,module)%>%sd,
-                     act_vec(Control,module)%>% mean, act_vec(Control,module) %>% sd)#calculate current score
-    
+  node_candi<-setdiff(PPI[PPI$Node1 %in% module,]$Node2 %>% as.character(),module) #list all the neighbor of module
+  nowScore<-Dis_Area(act_vec(case_Data,module)%>% mean,act_vec(case_Data,module)%>%sd,
+                     act_vec(control_Data,module)%>% mean, act_vec(control_Data,module) %>% sd)#calculate current score
+  if(length(node_candi) == 0){return(list(module,nowScore))}  
   score<-c() #vector contains the node_candi's scores
   for(i in 1:length(node_candi)){
     newMod<-c(module,node_candi[i])
-    score<-c(Dis_Area(act_vec(Case,newMod)%>% mean,act_vec(Case,newMod)%>%sd,
-                    act_vec(Control,newMod)%>% mean, act_vec(Control,newMod) %>% sd),score)
+    score<-c(score,Dis_Area(act_vec(case_Data,newMod)%>% mean,act_vec(case_Data,newMod)%>%sd,
+                    act_vec(control_Data,newMod)%>% mean, act_vec(control_Data,newMod) %>% sd))
   } #Calculate node_candi's scores
   names(score)<-node_candi
-  if(min(score)<nowScore){return(c(module,score[order(score,decreasing = F)][1] %>% names))}
-  else{return(module)} #decide wheater add the new node into current module
+  if(min(score)<nowScore){return(list(c(module,score[order(score,decreasing = F)][1] %>% names),min(score)))}
+  else{return(list(module,nowScore))} #decide wheater add the new node into current module
 }
 
-#
+#Function seed_Greedy
+#get a network from a seed by greedy algothrm
+#seed is a character which is the seed to initiate search job
+#thr is the threhold which determines whether terminate the search
+seed_Greedy<-function(seed,PPI,case_Data,control_Data,thr){
+  flag = T
+  modl<-c(seed,PPI[PPI$Node1 == seed,"Node2"] %>% as.character())
+  nowScore<-Dis_Area(act_vec(case_Data,modl)%>% mean,act_vec(case_Data,modl)%>%sd,
+                     act_vec(control_Data,modl)%>% mean, act_vec(control_Data,modl) %>% sd)
+  while(flag == T){
+    res<-Module_Add(modl,PPI,case_Data,control_Data)
+    modl<-res[[1]];score<-res[[2]]
+    print(score)
+    if((nowScore-score)<thr){break}
+    nowScore<-score
+  }
+  return(modl)
+}
+########################################################
 
 #
 
